@@ -83,12 +83,20 @@ MAKE_DIMENSION_TABLE_SQL = """
 # functions 
 
 def read_hanjya(*args, **kawargs):
+    '''
+    this is a preprocessing function to process a raw text 
+    to a clean, machine readable JSON file
+
+    This is prepared for 'hanja.txt'
+    '''
 
     s3 = boto3.resource('s3')
     f = open('hanja.txt', 'r')
 
     df = pd.DataFrame(columns=['korean', 'hanja', 'examples'])
-    stop_line = 1500000
+    stop_line = 1500000  
+    # stop_line is for development use (use small numbers 
+    # (ex. 100) to stop earlier) instead waiting for hours 
 
     for index, line in enumerate(f): 
         split_line = line.split(':')
@@ -103,12 +111,22 @@ def read_hanjya(*args, **kawargs):
     s3.Bucket(S3_BUCKET).put_object(Key=filename, Body=hanja_JSON)
 
 def read_title(*args, **kawargs):
+    '''
+    this is a preprocessing function to process a raw text 
+    to a clean, machine readable JSON file
+
+    This is prepared for kowiki-20190401-pages-articles-multistream-index.txt
+    '''
+
+
     f = open('kowiki-20190401-pages-articles-multistream-index.txt', 'r')
 
     df = pd.DataFrame(columns=['edit_id', 'word_id', 'korean'])
 
     show = 10000
     stop_line = 1500000
+    # stop_line is for development use (use small numbers 
+    # (ex. 100) to stop earlier) instead waiting for hours 
 
     s3 = boto3.resource('s3')
 
@@ -134,11 +152,22 @@ def read_title(*args, **kawargs):
     s3.Bucket(S3_BUCKET).put_object(Key=filename, Body=title_JSON)
 
 def read_langlink(*args, **kawargs):
+
+    '''
+    this is a preprocessing function to process a raw text 
+    to a clean, machine readable JSON file
+
+    This is prepared for kowiki-20190401-langlink(processed).txt
+    '''
+
+
     f = open('kowiki-20190401-langlink(processed).txt', 'r')
 
     df = pd.DataFrame(columns=['article_id', 'language','text'])
 
     stop_line = 1500000
+    # stop_line is for development use (use small numbers 
+    # (ex. 100) to stop earlier) instead waiting for hours 
 
     for line in f: 
         split_line = line.split("),(")
@@ -161,6 +190,10 @@ def read_langlink(*args, **kawargs):
 
 
 def stage_data_to_redshift1(*args, **kwargs):
+    '''
+    this is a function to stage 'langlink2.json' onto Redshift
+    '''
+
     filename = 'langlink2.json'
     aws_hook = AwsHook('aws-credentials')
     credentials = aws_hook.get_credentials()
@@ -174,6 +207,10 @@ def stage_data_to_redshift1(*args, **kwargs):
     redshift_hook.run(sql)
 
 def stage_data_to_redshift2(*args, **kwargs):
+    '''
+    this is a functino to stage 'hanja2.json' onto Redshift
+    '''
+
     filename = 'hanja2.json'
     aws_hook = AwsHook('aws-credentials')
     credentials = aws_hook.get_credentials()
@@ -187,6 +224,10 @@ def stage_data_to_redshift2(*args, **kwargs):
     redshift_hook.run(sql)
 
 def stage_data_to_redshift3(*args, **kwargs):
+    '''
+    this is a functino to stage files in 'titles2' folder onto Redshift
+    '''
+
     filename = 'titles2'
     aws_hook = AwsHook('aws-credentials')
     credentials = aws_hook.get_credentials()
@@ -200,6 +241,12 @@ def stage_data_to_redshift3(*args, **kwargs):
     redshift_hook.run(sql)
 
 def check_data_count(*args, **kwargs):
+    '''
+    this is a functino to check data. 
+    Check whether a table spacified by kwargs (['params']['table])
+    has 1 or more rows
+    '''
+
     table = kwargs['params']['table']
     redshift_hook = PostgresHook('redshift')
     records = redshift_hook.get_records("SELECT COUNT(*) FROM {}".format(table))
@@ -211,6 +258,14 @@ def check_data_count(*args, **kwargs):
     logging.info(f"Data quality on table {table} check passed with {records[0][0]} records")
 
 def check_data_length(*args, **kwargs):
+    '''
+    this is a functino to check data. 
+    Check whether a field in a table spacified by kwargs 
+    (['params']['table], and ['params]['field])
+    has longer values than the threshold ['params']['max_length_th]
+    If so, it is suspicios that some irregular data are inside
+    '''
+
     table = kwargs['params']['table']
     field = kwargs['params']['field']
     max_length_th = kwargs['params']['max_length_th']
